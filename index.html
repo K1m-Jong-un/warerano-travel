@@ -136,46 +136,7 @@
             const [newPlan, setNewPlan] = useState({ date: "", time: "", title: "", desc: "" });
             const [newCandidateText, setNewCandidateText] = useState("");
             const [newComment, setNewComment] = useState("");
-            // --- ここから追加 ---
-const [showEffect, setShowEffect] = useState(false);
-
-// topPrefecture（1位の県）が変わったのを感知して、エフェクトをONにする
-useEffect(() => {
-    if (topPrefecture) {
-        setShowEffect(true);
-        // 1.5秒後にエフェクトを消す
-        const timer = setTimeout(() => setShowEffect(false), 1500);
-        return () => clearTimeout(timer);
-    }
-}, [topPrefecture]);
-// --- ここまで追加 ---
-
-            // ---------------------------------------------------------
-            // データベース連携処理
-            // ---------------------------------------------------------
-            useEffect(() => {
-                // 初回読み込み
-                const fetchAppData = async () => {
-                    const { data, error } = await supabaseClient.from('app_state').select('data').eq('id', 1).single();
-                    if (data) setAppData(data.data);
-                };
-                fetchAppData();
-
-                // 誰かが更新した時にリアルタイムで受け取る
-                const channel = supabaseClient.channel('realtime_app_state')
-                    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, (payload) => {
-                        setAppData(payload.new.data);
-                    })
-                    .subscribe();
-
-                return () => supabaseClient.removeChannel(channel);
-            }, []);
-
-            // データを更新してSupabaseに送信する関数
-            const updateDatabase = async (newData) => {
-                setAppData(newData); // 自分の画面を即座に更新
-                await supabaseClient.from('app_state').update({ data: newData }).eq('id', 1); // データベースに保存
-            };
+            const [showEffect, setShowEffect] = useState(false);
 
             // 1. データが空の時のための「仮の箱」を用意（エラー回避）
             const currentData = appData || {
@@ -185,7 +146,7 @@ useEffect(() => {
             const { votes, schedule, dateCandidates, dateVotes, roles, comments } = currentData;
 
             // ---------------------------------------------------------
-            // 計算ロジック
+            // 計算ロジック（※エフェクトのセンサーより「先」に計算する！）
             // ---------------------------------------------------------
             const voteTally = useMemo(() => {
                 const tally = {};
@@ -219,11 +180,55 @@ useEffect(() => {
 
             const totalCost = useMemo(() => roles.reduce((sum, role) => sum + (Number(role.cost) || 0), 0), [roles]);
 
+            // ---------------------------------------------------------
+            // 和風エフェクトのセンサー（※topPrefectureが計算された「後」に置く）
+            // ---------------------------------------------------------
+            useEffect(() => {
+                if (topPrefecture) {
+                    setShowEffect(true);
+                    // 1.5秒後にエフェクトを消す
+                    const timer = setTimeout(() => setShowEffect(false), 1500);
+                    return () => clearTimeout(timer);
+                }
+            }, [topPrefecture]);
+
+            // ---------------------------------------------------------
+            // データベース連携処理
+            // ---------------------------------------------------------
+            useEffect(() => {
+                // 初回読み込み
+                const fetchAppData = async () => {
+                    const { data, error } = await supabaseClient.from('app_state').select('data').eq('id', 1).single();
+                    if (data) setAppData(data.data);
+                };
+                fetchAppData();
+
+                // 誰かが更新した時にリアルタイムで受け取る
+                const channel = supabaseClient.channel('realtime_app_state')
+                    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, (payload) => {
+                        setAppData(payload.new.data);
+                    })
+                    .subscribe();
+
+                return () => supabaseClient.removeChannel(channel);
+            }, []);
+
+            // データを更新してSupabaseに送信する関数
+            const updateDatabase = async (newData) => {
+                setAppData(newData); // 自分の画面を即座に更新
+                await supabaseClient.from('app_state').update({ data: newData }).eq('id', 1); // データベースに保存
+            };
+
             // ==========================================
-            // 3. フック（useMemo）の計算が終わったココに、ローディング画面を入れる！
+            // 3. フック（useMemoやuseEffect）の計算が終わったココに、ローディング画面を入れる！
             // ==========================================
             if (!appData) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center font-bold text-xl">通信中...📡</div>;
 
+            // ---------------------------------------------------------
+            // 更新アクション (Supabaseへ送る)
+            // ---------------------------------------------------------
+            
+            // ・・・ここから下のコード（const handleVote = ...）はそのまま変更なしでOKです！・・・
             // ---------------------------------------------------------
             // 更新アクション (Supabaseへ送る)
             // ---------------------------------------------------------
