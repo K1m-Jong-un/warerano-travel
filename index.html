@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌸 我らの旅計画</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .glass-panel {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 overflow-x-hidden">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect } = React;
+
+        // ==========================================
+        // 【設定】ご自身のSupabaseキーをここに貼り付けてください
+        // ==========================================
+        const SUPABASE_URL = 'https://brwxpekblfnunnujqrvr.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_M9Y2YWc8dVSoM_6BmLXxCw_WMO0U-ca';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // --- 都道府県データ (省略せずにそのまま使用) ---
+        const PREFECTURE_DATA = {
+            "北海道": { symbol: "さっぽろ雪まつり", imageUrl: "" }, "青森県": { symbol: "青森ねぶた祭", imageUrl: "" }, "岩手県": { symbol: "中尊寺金色堂", imageUrl: "" },
+            "宮城県": { symbol: "松島", imageUrl: "" }, "秋田県": { symbol: "秋田竿燈まつり", imageUrl: "" }, "山形県": { symbol: "銀山温泉", imageUrl: "" },
+            "福島県": { symbol: "鶴ヶ城", imageUrl: "" }, "茨城県": { symbol: "国営ひたち海浜公園のネモフィラ", imageUrl: "" }, "栃木県": { symbol: "日光東照宮", imageUrl: "" },
+            "群馬県": { symbol: "草津温泉の湯畑", imageUrl: "" }, "埼玉県": { symbol: "秩父夜祭", imageUrl: "" }, "千葉県": { symbol: "成田山新勝寺", imageUrl: "" },
+            "東京都": { symbol: "浅草寺", imageUrl: "" }, "神奈川県": { symbol: "鎌倉大仏", imageUrl: "" }, "新潟県": { symbol: "長岡まつり大花火大会", imageUrl: "" },
+            "富山県": { symbol: "黒部ダム", imageUrl: "" }, "石川県": { symbol: "兼六園", imageUrl: "" }, "福井県": { symbol: "東尋坊", imageUrl: "" },
+            "山梨県": { symbol: "富士山", imageUrl: "" }, "長野県": { symbol: "松本城", imageUrl: "" }, "岐阜県": { symbol: "白川郷の合掌造り集落", imageUrl: "" },
+            "静岡県": { symbol: "三保の松原", imageUrl: "" }, "愛知県": { symbol: "名古屋城", imageUrl: "" }, "三重県": { symbol: "伊勢神宮", imageUrl: "" },
+            "滋賀県": { symbol: "彦根城", imageUrl: "" }, "京都府": { symbol: "金閣寺", imageUrl: "" }, "大阪府": { symbol: "岸和田だんじり祭", imageUrl: "" },
+            "兵庫県": { symbol: "姫路城", imageUrl: "" }, "奈良県": { symbol: "東大寺大仏殿", imageUrl: "" }, "和歌山県": { symbol: "那智の滝", imageUrl: "" },
+            "鳥取県": { symbol: "鳥取砂丘", imageUrl: "" }, "島根県": { symbol: "出雲大社", imageUrl: "" }, "岡山県": { symbol: "岡山後楽園", imageUrl: "" },
+            "広島県": { symbol: "厳島神社", imageUrl: "" }, "山口県": { symbol: "錦帯橋", imageUrl: "" }, "徳島県": { symbol: "阿波おどり", imageUrl: "" },
+            "香川県": { symbol: "金刀比羅宮", imageUrl: "" }, "愛媛県": { symbol: "道後温泉本館", imageUrl: "" }, "高知県": { symbol: "よさこい祭り", imageUrl: "" },
+            "福岡県": { symbol: "博多祇園山笠", imageUrl: "" }, "佐賀県": { symbol: "唐津くんち", imageUrl: "" }, "長崎県": { symbol: "大浦天主堂", imageUrl: "" },
+            "熊本県": { symbol: "熊本城", imageUrl: "" }, "大分県": { symbol: "別府地獄めぐり", imageUrl: "" }, "宮崎県": { symbol: "高千穂峡", imageUrl: "" },
+            "鹿児島県": { symbol: "桜島", imageUrl: "" }, "沖縄県": { symbol: "首里城", imageUrl: "" }
+        };
+        const PREFECTURES = Object.keys(PREFECTURE_DATA);
+        const MEMBERS = ["ひなた", "なお", "よしはら", "ひろと", "ぶっちゃん", "はると", "ゆうま"];
+
+        // --- SVGアイコンコンポーネント (そのまま) ---
+        const Icon = ({ name, className = "w-5 h-5" }) => {
+            const icons = {
+                MapPin: <><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></>,
+                Calendar: <><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></>,
+                Clock: <><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>,
+                Trash2: <><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></>,
+                Plus: <><line x1="12" x2="12" y1="5" y2="19" /><line x1="5" x2="19" y1="12" y2="12" /></>,
+                Users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
+                Award: <><circle cx="12" cy="8" r="7" /><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" /></>,
+                CheckCircle: <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></>,
+                Info: <><circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="16" y2="12" /><line x1="12" x2="12.01" y1="8" y2="8" /></>,
+                MessageSquare: <><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></>,
+                UserCheck: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><polyline points="16 11 18 13 22 9" /></>,
+                Send: <><line x1="22" x2="11" y1="2" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></>,
+                Briefcase: <><rect width="20" height="14" x="2" y="7" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></>,
+                JapaneseIcon: <><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="#ff0000" fillOpacity="0.2" /><circle cx="12" cy="12" r="5" fill="#ff0000" /></>
+            };
+            return (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    {icons[name] || null}
+                </svg>
+            );
+        };
+
+        function App() {
+            const [currentUser, setCurrentUser] = useState(MEMBERS[0]);
+
+            // 全データを1つの「appData」として管理
+            const [appData, setAppData] = useState(null);
+
+            // ローカル用の入力状態
+            const [newPlan, setNewPlan] = useState({ date: "", time: "", title: "", desc: "" });
+            const [newCandidateText, setNewCandidateText] = useState("");
+            const [newComment, setNewComment] = useState("");
+
+            // ---------------------------------------------------------
+            // データベース連携処理
+            // ---------------------------------------------------------
+            useEffect(() => {
+                // 初回読み込み
+                const fetchAppData = async () => {
+                    const { data, error } = await supabaseClient.from('app_state').select('data').eq('id', 1).single();
+                    if (data) setAppData(data.data);
+                };
+                fetchAppData();
+
+                // 誰かが更新した時にリアルタイムで受け取る
+                const channel = supabaseClient.channel('realtime_app_state')
+                    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, (payload) => {
+                        setAppData(payload.new.data);
+                    })
+                    .subscribe();
+
+                return () => supabaseClient.removeChannel(channel);
+            }, []);
+
+            // データを更新してSupabaseに送信する関数
+            const updateDatabase = async (newData) => {
+                setAppData(newData); // 自分の画面を即座に更新
+                await supabaseClient.from('app_state').update({ data: newData }).eq('id', 1); // データベースに保存
+            };
+
+            // 1. データが空の時のための「仮の箱」を用意（エラー回避）
+            const currentData = appData || {
+                votes: {}, schedule: [], dateCandidates: [], dateVotes: {}, roles: [], comments: []
+            };
+            // 2. 仮の箱、または本物のデータから要素を取り出す
+            const { votes, schedule, dateCandidates, dateVotes, roles, comments } = currentData;
+
+            // ---------------------------------------------------------
+            // 計算ロジック
+            // ---------------------------------------------------------
+            const voteTally = useMemo(() => {
+                const tally = {};
+                Object.entries(votes).forEach(([member, pref]) => {
+                    if (!tally[pref]) tally[pref] = { count: 0, members: [] };
+                    tally[pref].count += 1;
+                    tally[pref].members.push(member);
+                });
+                return Object.entries(tally).sort((a, b) => b[1].count - a[1].count);
+            }, [votes]);
+
+            const topPrefecture = useMemo(() => voteTally.length > 0 ? voteTally[0][0] : null, [voteTally]);
+            const maxVotes = voteTally.length > 0 ? voteTally[0][1].count : 0;
+            const topPrefData = topPrefecture ? PREFECTURE_DATA[topPrefecture] : null;
+
+            const dateRanking = useMemo(() => {
+                const tally = dateCandidates.map(candidate => {
+                    let ok = 0, maybe = 0, ng = 0;
+                    const okMembers = [], maybeMembers = [], ngMembers = [];
+                    MEMBERS.forEach(m => {
+                        const v = dateVotes[m]?.[candidate.id];
+                        if (v === 'OK') { ok++; okMembers.push(m); }
+                        else if (v === 'MAYBE') { maybe++; maybeMembers.push(m); }
+                        else if (v === 'NG') { ng++; ngMembers.push(m); }
+                    });
+                    const score = (ok * 2) + (maybe * 1) - (ng * 1);
+                    return { ...candidate, ok, maybe, ng, okMembers, maybeMembers, ngMembers, score };
+                });
+                return tally.sort((a, b) => b.score - a.score);
+            }, [dateCandidates, dateVotes]);
+
+            const totalCost = useMemo(() => roles.reduce((sum, role) => sum + (Number(role.cost) || 0), 0), [roles]);
+
+            // ==========================================
+            // 3. フック（useMemo）の計算が終わったココに、ローディング画面を入れる！
+            // ==========================================
+            if (!appData) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center font-bold text-xl">通信中...📡</div>;
+
+            // ---------------------------------------------------------
+            // 更新アクション (Supabaseへ送る)
+            // ---------------------------------------------------------
+            const handleVote = (pref) => updateDatabase({ ...appData, votes: { ...votes, [currentUser]: pref } });
+
+            const handleAddPlan = (e) => {
+                e.preventDefault();
+                if (!newPlan.date || !newPlan.title) return;
+                const newSchedule = [...schedule, { ...newPlan, id: Date.now() }].sort((a, b) => new Date(`${a.date}T${a.time || '00:00'}`) - new Date(`${b.date}T${b.time || '00:00'}`));
+                updateDatabase({ ...appData, schedule: newSchedule });
+                setNewPlan({ date: "", time: "", title: "", desc: "" });
+            };
+            const handleDeletePlan = (id) => updateDatabase({ ...appData, schedule: schedule.filter(p => p.id !== id) });
+
+            const handleAddCandidate = (e) => {
+                e.preventDefault();
+                if (!newCandidateText.trim()) return;
+                updateDatabase({ ...appData, dateCandidates: [...dateCandidates, { id: Date.now().toString(), text: newCandidateText }] });
+                setNewCandidateText("");
+            };
+            const handleDeleteCandidate = (id) => updateDatabase({ ...appData, dateCandidates: dateCandidates.filter(c => c.id !== id) });
+
+            const handleDateVote = (candidateId, status) => {
+                updateDatabase({
+                    ...appData,
+                    dateVotes: { ...dateVotes, [currentUser]: { ...(dateVotes[currentUser] || {}), [candidateId]: status } }
+                });
+            };
+
+            const updateRole = (id, field, value) => {
+                updateDatabase({ ...appData, roles: roles.map(r => r.id === id ? { ...r, [field]: value } : r) });
+            };
+            const toggleRoleMember = (roleId, member) => {
+                updateDatabase({
+                    ...appData, roles: roles.map(r => {
+                        if (r.id !== roleId) return r;
+                        const members = r.members.includes(member) ? r.members.filter(m => m !== member) : [...r.members, member];
+                        return { ...r, members };
+                    })
+                });
+            };
+
+            const handleAddComment = (e) => {
+                e.preventDefault();
+                if (!newComment.trim()) return;
+                const now = new Date();
+                const newCommentData = { id: Date.now(), user: currentUser, text: newComment, time: `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}` };
+                updateDatabase({ ...appData, comments: [...comments, newCommentData] });
+                setNewComment("");
+            };
+
+            const backgroundUrl = topPrefData
+                ? (topPrefData.imageUrl || `https://image.pollinations.ai/prompt/${encodeURIComponent(topPrefData.symbol + ' japan scenic photography')}?width=1920&height=1080&nologo=true`)
+                : 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=1920&auto=format&fit=crop';
+
+            return (
+                <div className="min-h-screen bg-cover bg-center bg-fixed transition-all duration-1000 relative text-white pb-12" style={{ backgroundImage: `url('${backgroundUrl}')` }}>
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+
+                    <div className="relative z-10 max-w-7xl mx-auto px-4 py-8 flex flex-col gap-8">
+                        {/* Header */}
+                        <header className="flex flex-col md:flex-row justify-between items-center glass-panel p-6 rounded-2xl shadow-2xl">
+                            <div className="flex items-center gap-4">
+                                <Icon name="JapaneseIcon" className="w-10 h-10" />
+                                <div>
+                                    <h1 className="text-3xl font-black tracking-tight drop-shadow-md">🌸 我らの旅計画</h1>
+                                    <div className="mt-1 font-bold">
+                                        {topPrefecture ? (
+                                            <span className="bg-gradient-to-r from-amber-400 to-rose-400 text-transparent bg-clip-text text-xl animate-pulse">
+                                                🎉 現在の1位：{topPrefecture} ({topPrefData.symbol})
+                                            </span>
+                                        ) : "行き先を投票で決めよう！"}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="mt-4 md:mt-0 flex items-center gap-3 bg-white/10 p-3 rounded-xl border border-white/20">
+                                <Icon name="Users" className="text-blue-300" />
+                                <select value={currentUser} onChange={(e) => setCurrentUser(e.target.value)} className="bg-transparent border-none text-white font-bold focus:ring-0 cursor-pointer outline-none [&>option]:text-black">
+                                    {MEMBERS.map(m => <option key={m} value={m}>{m}として操作中</option>)}
+                                </select>
+                            </div>
+                        </header>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                            {/* Left Col */}
+                            <div className="lg:col-span-5 flex flex-col gap-6">
+                                {/* Vote */}
+                                <section className="glass-panel p-6 rounded-2xl shadow-xl overflow-hidden relative">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <Icon name="MapPin" className="text-rose-400" />
+                                        <h2 className="text-xl font-bold">行き先投票 (全7票)</h2>
+                                    </div>
+                                    <div className="mb-6 bg-white/5 p-4 rounded-xl border border-white/10">
+                                        <select className="w-full rounded-lg border-white/30 bg-black/60 p-2 text-white" value={votes[currentUser] || ""} onChange={(e) => handleVote(e.target.value)}>
+                                            <option value="" disabled>都道府県を選択...</option>
+                                            {PREFECTURES.map(p => <option key={p} value={p}>{p}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-3">
+                                        {voteTally.map(([pref, data]) => (
+                                            <div key={pref} className={`relative overflow-hidden rounded-xl p-3 border ${data.count === maxVotes ? 'bg-amber-400/20 border-amber-300/50' : 'bg-white/5 border-white/10'}`}>
+                                                <div className="absolute left-0 top-0 bottom-0 opacity-30 bg-blue-400" style={{ width: `${(data.count / 7) * 100}%` }} />
+                                                <div className="relative z-10 flex flex-col">
+                                                    <div className="flex justify-between items-center font-bold">
+                                                        <span>{pref}</span><span>{data.count}票</span>
+                                                    </div>
+                                                    <div className="text-[10px] text-gray-300 mt-1 flex gap-1 flex-wrap">
+                                                        {data.members.map(m => <span key={m} className="bg-black/30 px-1.5 py-0.5 rounded">{m}</span>)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+
+                                {/* Date Adjust */}
+                                <section className="glass-panel p-6 rounded-2xl shadow-xl">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <Icon name="UserCheck" className="text-emerald-400" />
+                                        <h2 className="text-xl font-bold">日程調整カレンダー</h2>
+                                    </div>
+                                    <div className="space-y-2 mb-6">
+                                        {dateCandidates.map(c => (
+                                            <div key={c.id} className="flex items-center justify-between p-2 bg-black/40 rounded-lg border border-white/5 group">
+                                                <div className="flex items-center gap-2 truncate pr-2">
+                                                    <button onClick={() => handleDeleteCandidate(c.id)} className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100"><Icon name="Trash2" className="w-4 h-4" /></button>
+                                                    <span className="text-sm truncate">{c.text}</span>
+                                                </div>
+                                                <div className="flex gap-1">
+                                                    {['OK', 'MAYBE', 'NG'].map(s => (
+                                                        <button key={s} onClick={() => handleDateVote(c.id, s)} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border ${dateVotes[currentUser]?.[c.id] === s ? 'bg-white/20 border-white' : 'border-transparent opacity-50 hover:opacity-100'}`}>
+                                                            {s === 'OK' ? '〇' : s === 'MAYBE' ? '△' : '×'}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <form onSubmit={handleAddCandidate} className="mt-3 flex gap-2">
+                                            <input type="text" placeholder="候補日追加..." className="flex-1 rounded-lg border-white/30 bg-black/60 p-2 text-xs" value={newCandidateText} onChange={(e) => setNewCandidateText(e.target.value)} />
+                                            <button type="submit" className="bg-white/20 px-3 py-1 rounded-lg text-xs font-bold">追加</button>
+                                        </form>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <h3 className="text-xs font-bold text-emerald-300 uppercase">最適日程ランキング</h3>
+                                        {dateRanking.map((item, idx) => (
+                                            <div key={item.id} className={`p-3 rounded-xl border ${idx === 0 ? 'bg-emerald-900/40 border-emerald-400/50' : 'bg-white/5 border-white/10'}`}>
+                                                <div className="font-bold flex justify-between">{item.text} {idx === 0 && <span className="text-[10px] bg-emerald-500 px-2 py-0.5 rounded-full">1位</span>}</div>
+                                                <div className="text-[10px] mt-1 space-y-0.5">
+                                                    <div className="text-emerald-400">〇 {item.ok}人 ({item.okMembers.join(', ')})</div>
+                                                    <div className="text-amber-400">△ {item.maybe}人 ({item.maybeMembers.join(', ')})</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            </div>
+
+                            {/* Right Col */}
+                            <div className="lg:col-span-7 flex flex-col gap-6">
+                                {/* Roles & Budget */}
+                                <section className="glass-panel p-6 rounded-2xl shadow-xl">
+                                    <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <Icon name="Briefcase" className="text-cyan-400" />
+                                            <h2 className="text-xl font-bold">役割・係の進捗</h2>
+                                        </div>
+                                        <div className="bg-cyan-900/60 border border-cyan-400/50 px-4 py-2 rounded-xl flex flex-col items-end">
+                                            <span className="font-bold">💰 旅費合計: ¥{totalCost.toLocaleString()}</span>
+                                            <span className="text-xs text-cyan-300">1人あたり: ¥{Math.ceil(totalCost / 7).toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                                        {roles.map(role => (
+                                            <div key={role.id} className="bg-white/10 p-4 rounded-xl border border-white/20">
+                                                <div className="flex justify-between mb-3">
+                                                    <input type="text" value={role.title} onChange={e => updateRole(role.id, 'title', e.target.value)} className="bg-transparent font-bold text-lg outline-none w-1/2" />
+                                                    <select value={role.status} onChange={e => updateRole(role.id, 'status', e.target.value)} className={`text-xs rounded-full px-3 py-1 font-bold border-none bg-gray-700 text-white ${role.status === '完了' ? 'bg-emerald-500' : role.status === '進行中' ? 'bg-blue-500' : ''}`}>
+                                                        <option value="未着手">未着手</option><option value="進行中">進行中</option><option value="完了">完了</option>
+                                                    </select>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2 mb-3">
+                                                    {MEMBERS.map(m => (
+                                                        <button key={m} onClick={() => toggleRoleMember(role.id, m)} className={`text-[10px] px-2 py-1 rounded border ${role.members.includes(m) ? 'bg-cyan-600 border-cyan-400' : 'bg-black/30 border-white/10 text-gray-400'}`}>{m}</button>
+                                                    ))}
+                                                </div>
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <span className="text-xs">予算: ¥</span>
+                                                    <input type="number" value={role.cost || ''} onChange={e => updateRole(role.id, 'cost', e.target.value)} className="bg-black/40 rounded px-2 py-1 text-xs w-24 outline-none border border-white/10" placeholder="0" />
+                                                </div>
+                                                <textarea value={role.desc} onChange={e => updateRole(role.id, 'desc', e.target.value)} className="w-full bg-black/40 border border-white/10 rounded p-2 text-xs h-12" placeholder="進捗・メモ..."></textarea>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+
+                                {/* Schedule */}
+                                <section className="glass-panel p-6 rounded-2xl shadow-xl flex flex-col h-[400px]">
+                                    <div className="flex items-center gap-2 mb-4"><Icon name="Calendar" className="text-indigo-400" /><h2 className="text-xl font-bold">旅のしおり</h2></div>
+                                    <form onSubmit={handleAddPlan} className="bg-white/5 p-4 rounded-xl border border-white/10 mb-4 flex flex-col gap-2">
+                                        <div className="flex gap-2">
+                                            <input type="date" required value={newPlan.date} onChange={e => setNewPlan({ ...newPlan, date: e.target.value })} className="flex-1 bg-black/60 rounded p-1 text-xs border border-white/20" />
+                                            <input type="time" value={newPlan.time} onChange={e => setNewPlan({ ...newPlan, time: e.target.value })} className="w-20 bg-black/60 rounded p-1 text-xs border border-white/20" />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <input type="text" required placeholder="タイトル" value={newPlan.title} onChange={e => setNewPlan({ ...newPlan, title: e.target.value })} className="flex-1 bg-black/60 rounded p-1 text-xs border border-white/20" />
+                                            <button type="submit" className="bg-indigo-500 px-3 py-1 rounded text-xs font-bold">追加</button>
+                                        </div>
+                                    </form>
+                                    <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+                                        {schedule.map((p) => (
+                                            <div key={p.id} className="flex items-start gap-3 p-2 hover:bg-white/5 rounded group border-l-2 border-indigo-400/50">
+                                                <div className="text-xs font-bold text-indigo-300 w-12">{p.time || '--:--'}</div>
+                                                <div className="flex-1"><div className="text-sm font-bold">{p.title}</div><div className="text-[10px] text-gray-400">{p.date}</div></div>
+                                                <button onClick={() => handleDeletePlan(p.id)} className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400"><Icon name="Trash2" className="w-4 h-4" /></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+
+                                {/* Comments */}
+                                <section className="glass-panel p-6 rounded-2xl shadow-xl flex flex-col h-[350px]">
+                                    <div className="flex items-center gap-2 mb-4"><Icon name="MessageSquare" className="text-purple-400" /><h2 className="text-xl font-bold">コメントボード</h2></div>
+                                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 mb-4">
+                                        {comments.map(c => (
+                                            <div key={c.id} className={`flex flex-col ${c.user === currentUser ? 'items-end' : 'items-start'}`}>
+                                                <span className="text-[10px] text-gray-400 mb-1">{c.user}</span>
+                                                <div className={`px-3 py-2 rounded-2xl text-sm ${c.user === currentUser ? 'bg-purple-600 rounded-tr-none' : 'bg-white/10 border border-white/10 rounded-tl-none'}`}>{c.text}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <form onSubmit={handleAddComment} className="flex gap-2">
+                                        <input type="text" placeholder="メッセージ..." className="flex-1 bg-black/60 rounded-full px-4 py-2 text-xs border border-white/20 outline-none" value={newComment} onChange={e => setNewComment(e.target.value)} />
+                                        <button type="submit" className="bg-purple-500 rounded-full w-8 h-8 flex items-center justify-center"><Icon name="Send" className="w-4 h-4" /></button>
+                                    </form>
+                                </section>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>
