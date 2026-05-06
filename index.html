@@ -41,6 +41,28 @@
             -webkit-backdrop-filter: blur(8px);
             border: 1px solid rgba(255, 255, 255, 0.15);
         }
+        /* ここから下を <style> の中に追加 */
+@keyframes gold-flash {
+    0% { opacity: 0; backdrop-filter: sepia(0) hue-rotate(0deg); transform: scale(1); }
+    20% { opacity: 1; backdrop-filter: sepia(0.8) hue-rotate(-30deg) brightness(1.5); transform: scale(1.02); }
+    100% { opacity: 0; backdrop-filter: sepia(0) hue-rotate(0deg); transform: scale(1); }
+}
+.effect-japanese-gold {
+    pointer-events: none; /* クリックの邪魔をしない */
+    animation: gold-flash 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    background: radial-gradient(circle, rgba(255,255,255,0.5) 0%, rgba(218,165,32,0.4) 50%, transparent 100%);
+    z-index: 100;
+}
+@keyframes sakura-bounce {
+    0% { transform: scale(0) rotate(0deg); opacity: 0; }
+    30% { transform: scale(1.5) rotate(15deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 0; }
+}
+.effect-sakura {
+    animation: sakura-bounce 1.5s ease-out forwards;
+    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.8));
+}
+/* ここまで */
     </style>
 </head>
 
@@ -114,6 +136,19 @@
             const [newPlan, setNewPlan] = useState({ date: "", time: "", title: "", desc: "" });
             const [newCandidateText, setNewCandidateText] = useState("");
             const [newComment, setNewComment] = useState("");
+            // --- ここから追加 ---
+const [showEffect, setShowEffect] = useState(false);
+
+// topPrefecture（1位の県）が変わったのを感知して、エフェクトをONにする
+useEffect(() => {
+    if (topPrefecture) {
+        setShowEffect(true);
+        // 1.5秒後にエフェクトを消す
+        const timer = setTimeout(() => setShowEffect(false), 1500);
+        return () => clearTimeout(timer);
+    }
+}, [topPrefecture]);
+// --- ここまで追加 ---
 
             // ---------------------------------------------------------
             // データベース連携処理
@@ -247,6 +282,12 @@
             return (
                 <div className="min-h-screen bg-cover bg-center bg-fixed transition-all duration-1000 relative text-white pb-12" style={{ backgroundImage: `url('${backgroundUrl}')` }}>
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+                    {/* 和風フラッシュエフェクト */}
+{showEffect && (
+    <div className="fixed inset-0 flex items-center justify-center effect-japanese-gold">
+        <div className="text-9xl effect-sakura">🌸</div>
+    </div>
+)}
 
                     <div className="relative z-10 max-w-7xl mx-auto px-4 py-8 flex flex-col gap-8">
                         {/* Header */}
